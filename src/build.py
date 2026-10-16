@@ -87,7 +87,9 @@ def fetch_fontawesome(cache_dir):
     archive_path = cache_dir / f"fontawesome-free-{FA_VERSION}-desktop.zip"
     if not archive_path.exists():
         print(f"Downloading {FA_URL}")
-        with urllib.request.urlopen(FA_URL) as response, open(archive_path, "wb") as file:
+        # The CDN answers 403 to Python's default User-Agent.
+        request = urllib.request.Request(FA_URL, headers={"User-Agent": "powered-steel-build"})
+        with urllib.request.urlopen(request) as response, open(archive_path, "wb") as file:
             shutil.copyfileobj(response, file)
 
     digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
