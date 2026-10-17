@@ -1,3 +1,5 @@
 .sync-exclude.lst
 src/lib/
 src/output/
+dist/
+__pycache__/

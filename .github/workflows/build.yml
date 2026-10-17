@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inkscape and Pillow
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends inkscape python3-pil
+
+      - name: Build pack
+        env:
+          # Tags are release versions; every other run gets a prerelease version that cannot be mistaken for one.
+          VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.0.0-ci.{0}', github.run_number) }}
+        run: python3 src/build.py --version "$VERSION"
+
+      - name: Check pack
+        run: python3 src/check_pack.py dist/*.macroDeckIconPack
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: powered-steel
+          path: dist/*.macroDeckIconPack
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    # Only this job can write, and it runs nothing from the repository.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: powered-steel
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" ./*.macroDeckIconPack
+          --repo "$GITHUB_REPOSITORY"
+          --title "Powered Steel ${GITHUB_REF_NAME#v}"
+          --generate-notes
